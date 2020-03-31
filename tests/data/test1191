@@ -1,0 +1,51 @@
+<testcase>
+<info>
+<keywords>
+MQTT
+MQTT PUBLISH
+</keywords>
+</info>
+
+#
+# Server-side
+<reply>
+<data>
+</data>
+</reply>
+
+#
+# Client-side
+<client>
+<features>
+mqtt
+</features>
+<server>
+mqtt
+</server>
+ <name>
+MQTT PUBLISH
+ </name>
+ <command>
+mqtt://%HOSTIP:%MQTTPORT/1191 -d something
+</command>
+</client>
+
+#
+# Verify data after the test has been "shot"
+<verify>
+# These are hexadecimal protocol dumps from the client
+#
+# Strip out the random part of the client id from the CONNECT message
+# before comparison
+<strippart>
+s/^(> 101800044d5154540402003c000c6375726c).*/$1/
+</strippart>
+<protocol>
+> 101800044d5154540402003c000c6375726c
+< 20020000
+> 300f000431313931736f6d657468696e67
+< 40000000
+< e000
+</protocol>
+</verify>
+</testcase>

@@ -1,0 +1,53 @@
+<testcase>
+<info>
+<keywords>
+MQTT
+MQTT SUBSCRIBE
+</keywords>
+</info>
+
+#
+# Server-side
+<reply>
+<data>
+hello
+</data>
+</reply>
+
+#
+# Client-side
+<client>
+<features>
+mqtt
+</features>
+<server>
+mqtt
+</server>
+ <name>
+MQTT SUBSCRIBE
+ </name>
+ <command>
+mqtt://%HOSTIP:%MQTTPORT/1190
+</command>
+</client>
+
+#
+# Verify data after the test has been "shot"
+<verify>
+# These are hexadecimal protocol dumps from the client
+#
+# Strip out the random part of the client id from the CONNECT message
+# before comparison
+<strippart>
+s/^(> 101800044d5154540402003c000c6375726c).*/$1/
+</strippart>
+<protocol>
+> 101800044d5154540402003c000c6375726c
+< 20020000
+> 82080001000431313930
+< 9003000100
+< 300c00043131393068656c6c6f0a
+< e000
+</protocol>
+</verify>
+</testcase>
