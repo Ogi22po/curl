@@ -18,6 +18,8 @@ jobs:
         - name: libssh2
           install: nghttp2 libssh2
           configure: --enable-debug --with-libssh2
+        - name: mqtt
+          configure: --enable-mqtt
         - name: c-ares
           install: nghttp2
           configure: --enable-debug --enable-ares
