@@ -30,7 +30,8 @@ struct mqtt_conn {
   enum {
     MQTT_CONNACK,
     MQTT_SUBACK,
-    MQTT_SUBWAIT
+    MQTT_SUBWAIT,    /* wait for subscribe response */
+    MQTT_SUB_REMAIN, /* wait for the remainder of the subscribe response */
   } state;
   unsigned int packetid;
 };
@@ -39,6 +40,10 @@ struct mqtt_conn {
 struct MQTT {
   char *sendleftovers;
   size_t nsend; /* size of sendleftovers */
+
+  /* when receving a PUBLISH */
+  size_t npacket; /* byte counter */
+  unsigned char firstbyte;
 };
 
 #endif /* HEADER_CURL_MQTT_H */

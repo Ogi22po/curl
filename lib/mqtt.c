@@ -53,7 +53,6 @@
 #define MQTT_CONNACK_LEN 4
 #define MQTT_SUBACK_LEN 5
 #define MQTT_CLIENTID_LEN 12 /* "curl0123abcd" */
-#define MQTT_HEADER_LEN 5    /* max 5 bytes */
 
 /*
  * Forward declarations.
@@ -93,14 +92,14 @@ static CURLcode mqtt_setup_conn(struct connectdata *conn)
 {
   /* allocate the HTTP-specific struct for the Curl_easy, only to survive
      during this request */
-  struct MQTT *mqtt;
+  struct MQTT *mq;
   struct Curl_easy *data = conn->data;
   DEBUGASSERT(data->req.protop == NULL);
 
-  mqtt = calloc(1, sizeof(struct MQTT));
-  if(!mqtt)
+  mq = calloc(1, sizeof(struct MQTT));
+  if(!mq)
     return CURLE_OUT_OF_MEMORY;
-  data->req.protop = mqtt;
+  data->req.protop = mq;
   return CURLE_OK;
 }
 
@@ -382,89 +381,92 @@ static size_t mqtt_decode_len(unsigned char *buf,
   return len;
 }
 
+/* for the publish packet */
+#define MQTT_HEADER_LEN 5    /* max 5 bytes */
+
 static CURLcode mqtt_read_publish(struct connectdata *conn,
                                   bool *done)
 {
   CURLcode result;
   curl_socket_t sockfd = conn->sock[FIRSTSOCKET];
   ssize_t nread;
-  unsigned char *pkt = NULL;
+  struct Curl_easy *data = conn->data;
+  unsigned char *pkt = (unsigned char *)data->state.buffer;
   size_t remlen, lenbytes;
-  unsigned char *ptr;
-  size_t topiclen;
-  size_t payloadlen;
-  size_t packetidlen = 0;
+  struct mqtt_conn *mqtt = &conn->proto.mqtt;
+  struct MQTT *mq = data->req.protop;
 
-  /* allocate enough for a short message */
-  pkt = malloc(130);
-  if(!pkt) {
-    result = CURLE_OUT_OF_MEMORY;
-    goto end;
-  }
-
-  result = Curl_read(conn, sockfd, (char *)pkt, MQTT_HEADER_LEN, &nread);
-  if(result)
-    goto end;
-
-  if(conn->data->set.verbose)
-    Curl_debug(conn->data, CURLINFO_HEADER_IN, (char *)pkt, (size_t)nread);
-
-  /* we are expecting a PUBLISH message */
-  if((pkt[0] & 0xf0) != MQTT_MSG_PUBLISH) {
-    if(pkt[0] == MQTT_MSG_DISCONNECT) {
-      infof(conn->data, "Got DISCONNECT\n");
-      *done = TRUE;
+  switch(mqtt->state) {
+  case MQTT_SUBWAIT:
+    /* Read the initial byte and the entire Remaining Length field
+       in this state */
+    result = Curl_read(conn, sockfd, (char *)&pkt[mq->npacket], 1, &nread);
+    if(result)
+      goto end;
+    if(data->set.verbose)
+      Curl_debug(data, CURLINFO_HEADER_IN, (char *)&pkt[mq->npacket], 1);
+    /* we are expecting a PUBLISH message */
+    if(!mq->npacket && ((pkt[0] & 0xf0) != MQTT_MSG_PUBLISH)) {
+      if(pkt[0] == MQTT_MSG_DISCONNECT) {
+        infof(data, "Got DISCONNECT\n");
+        *done = TRUE;
+        goto end;
+      }
+      result = CURLE_WEIRD_SERVER_REPLY;
       goto end;
     }
+    else if((mq->npacket >= 1) && !(pkt[mq->npacket] & 0x80))
+      /* as long as the high bit is set in the length byte, we read one more
+         byte, then get the remainder of the PUBLISH */
+      mqtt->state = MQTT_SUB_REMAIN;
+    mq->npacket++;
+    if(mqtt->state == MQTT_SUBWAIT)
+      return result;
+
+    /* -- switched state -- */
+
+    /* remember the first byte */
+    mq->firstbyte = pkt[0];
+
+    remlen = mqtt_decode_len(&pkt[1], 4, &lenbytes);
+
+    infof(data, "Remaining length: %zd bytes\n", remlen);
+    mq->npacket = remlen; /* get this many bytes */
+    /* FALLTHROUGH */
+  case MQTT_SUB_REMAIN: {
+    /* read rest of packet, but no more. Cap to buffer size */
+    size_t rest = mq->npacket;
+    if(rest > (size_t)data->set.buffer_size)
+      rest = (size_t)data->set.buffer_size;
+    result = Curl_read(conn, sockfd, (char *)pkt, rest, &nread);
+    if(result) {
+      if(CURLE_AGAIN == result) {
+        infof(data, "EEEE AAAAGAIN\n");
+      }
+      goto end;
+    }
+    if(data->set.verbose)
+      Curl_debug(data, CURLINFO_DATA_IN, (char *)pkt, (size_t)nread);
+
+    mq->npacket -= nread;
+
+    /* if QoS is set, message contains packet id */
+
+    result = Curl_client_write(conn, CLIENTWRITE_BODY, (char *)pkt, nread);
+    if(result)
+      goto end;
+
+    if(!mq->npacket)
+      /* no more PUBLISH payload, back to subscribe wait state */
+      mqtt->state = MQTT_SUBWAIT;
+    break;
+  }
+  default:
+    DEBUGASSERT(NULL); /* illegal state */
     result = CURLE_WEIRD_SERVER_REPLY;
     goto end;
   }
-
-  /* if QoS is set, message contains packet id */
-  if(pkt[0] & 6)
-    packetidlen = 2;
-
-  remlen = mqtt_decode_len(&pkt[1], 4, &lenbytes);
-
-  /* reallocate a bigger buffer if necessary */
-  if(remlen > 125) {
-    unsigned char *newpkt = Curl_saferealloc(pkt, remlen + lenbytes + 1);
-    if(!newpkt) {
-      result = CURLE_OUT_OF_MEMORY;
-      goto end;
-    }
-    else
-      pkt = newpkt;
-  }
-
-  /* read rest of packet */
-  result = Curl_read(conn, sockfd,
-                     (char *)(pkt + MQTT_HEADER_LEN),
-                     1 + lenbytes + remlen - MQTT_HEADER_LEN,
-                     &nread);
-  if(result)
-    goto end;
-
-  if(conn->data->set.verbose)
-    Curl_debug(conn->data, CURLINFO_DATA_IN, (char *)pkt + MQTT_HEADER_LEN,
-               (size_t)nread);
-
-  ptr = pkt + 1 + lenbytes; /* skip header + lenbytes */
-  topiclen = (ptr[0] << 8) + ptr[1];
-  payloadlen = remlen - 2 - topiclen - packetidlen;
-  /* sanity check lengths */
-  if(2 + topiclen + payloadlen + packetidlen > remlen) {
-    result = CURLE_WEIRD_SERVER_REPLY;
-    goto end;
-  }
-  ptr += 2; /* skip topic length bytes */
-  ptr += topiclen + packetidlen; /* skip topic + packet id */
-  result = Curl_client_write(conn, CLIENTWRITE_BODY, (char *)ptr, payloadlen);
-  if(result)
-    goto end;
-
   end:
-  free(pkt);
   return result;
 }
 
