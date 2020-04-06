@@ -431,10 +431,13 @@ static CURLcode mqtt_read_publish(struct connectdata *conn,
     remlen = mqtt_decode_len(&pkt[1], 4, &lenbytes);
 
     infof(data, "Remaining length: %zd bytes\n", remlen);
+    Curl_pgrsSetDownloadSize(data, remlen);
+    data->req.bytecount = 0;
     mq->npacket = remlen; /* get this many bytes */
     /* FALLTHROUGH */
   case MQTT_SUB_REMAIN: {
     /* read rest of packet, but no more. Cap to buffer size */
+    struct SingleRequest *k = &data->req;
     size_t rest = mq->npacket;
     if(rest > (size_t)data->set.buffer_size)
       rest = (size_t)data->set.buffer_size;
@@ -449,6 +452,8 @@ static CURLcode mqtt_read_publish(struct connectdata *conn,
       Curl_debug(data, CURLINFO_DATA_IN, (char *)pkt, (size_t)nread);
 
     mq->npacket -= nread;
+    k->bytecount += nread;
+    Curl_pgrsSetDownloadCounter(data, k->bytecount);
 
     /* if QoS is set, message contains packet id */
 
@@ -534,6 +539,7 @@ static CURLcode mqtt_doing(struct connectdata *conn, bool *done)
     break;
 
   case MQTT_SUBWAIT:
+  case MQTT_SUB_REMAIN:
     result = mqtt_read_publish(conn, done);
     if(result)
       break;
