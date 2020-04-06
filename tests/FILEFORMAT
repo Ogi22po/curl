@@ -37,7 +37,7 @@ which are treated together as a single identifier.
 </info>
 
 <reply>
-<data [nocheck="yes"] [sendzero="yes"] [base64="yes"]>
+<data [nocheck="yes"] [sendzero="yes"] [base64="yes"] [hex="yes"]>
 data to be sent to the client on its request and later verified that it arrived
 safely. Set nocheck="yes" to prevent the test script from verifying the arrival
 of this data.
@@ -59,6 +59,9 @@ transfers.
 of data encoded with base64. It is the only way a test case can contain binary
 data. (This attribute can in fact be used on any section, but it doesn't make
 much sense for other sections than "data").
+
+'hex' set to yes means that the data is a sequence of hex pairs. It will get
+decoded and used as "raw" data.
 
 For FTP file listings, the <data> section will be used *only* if you make sure
 that there has been a CWD done first to a directory named 'test-[num]' where
