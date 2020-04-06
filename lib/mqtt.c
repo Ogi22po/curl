@@ -433,6 +433,7 @@ static CURLcode mqtt_read_publish(struct connectdata *conn,
     infof(data, "Remaining length: %zd bytes\n", remlen);
     Curl_pgrsSetDownloadSize(data, remlen);
     data->req.bytecount = 0;
+    data->req.size = remlen;
     mq->npacket = remlen; /* get this many bytes */
     /* FALLTHROUGH */
   case MQTT_SUB_REMAIN: {
