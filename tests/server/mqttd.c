@@ -615,13 +615,16 @@ static curl_socket_t mqttit(curl_socket_t fd)
 
       /* two bytes topic length */
       topic_len = (buffer[i + 2] << 8) | buffer[i + 3];
-      if(topic_len != (remaining_length - 4)) {
+      if(topic_len != (remaining_length - 5)) {
         logmsg("Wrong topic length, got %d expected %d",
-               topic_len, remaining_length - 4);
+               topic_len, remaining_length - 5);
         goto end;
       }
       memcpy(topic, &buffer[i + 4], topic_len);
       topic[topic_len] = 0;
+
+      /* there's a QoS byte (two bits) after the topic */
+
       logmsg("SUBSCRIBE to '%s' [%d]", topic, packet_id);
       if(suback(dump, fd, packet_id)) {
         logmsg("failed sending SUBACK");

@@ -257,7 +257,8 @@ static CURLcode mqtt_subscribe(struct connectdata *conn)
 
   conn->proto.mqtt.packetid++;
 
-  packetlen = topiclen + 4; /* packetid + topic + 2 bytes topic length */
+  packetlen = topiclen + 5; /* packetid + topic (has a two byte length field)
+                               + 2 bytes topic length + QoS byte */
   n = mqtt_encode_len((char *)encodedsize, packetlen);
   packetlen += n + 1; /* add one for the control packet type byte */
 
@@ -274,6 +275,7 @@ static CURLcode mqtt_subscribe(struct connectdata *conn)
   packet[3 + n] = (topiclen >> 8) & 0xff;
   packet[4 + n ] = topiclen & 0xff;
   memcpy(&packet[5 + n], topic, topiclen);
+  packet[5 + n + topiclen] = 0; /* QoS zero */
 
   result = mqtt_send(conn, (char *)packet, packetlen);
 
