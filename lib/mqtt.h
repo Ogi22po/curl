@@ -31,7 +31,7 @@ struct mqtt_conn {
     MQTT_CONNACK,
     MQTT_SUBACK,
     MQTT_SUBWAIT,    /* wait for subscribe response */
-    MQTT_SUB_REMAIN, /* wait for the remainder of the subscribe response */
+    MQTT_SUB_REMAIN  /* wait for the remainder of the subscribe response */
   } state;
   unsigned int packetid;
 };
