@@ -3756,9 +3756,14 @@ sub singletest {
         if((!$cmdhash{'option'}) || ($cmdhash{'option'} !~ /no-include/)) {
             $inc = " --include";
         }
-
         $cmdargs = "$out$inc ";
-        $cmdargs .= "--trace log/trace$testnum ";
+
+        if($cmdhash{'option'} && ($cmdhash{'option'} =~ /binary-trace/)) {
+            $cmdargs .= "--trace log/trace$testnum ";
+        }
+        else {
+            $cmdargs .= "--trace-ascii log/trace$testnum ";
+        }
         $cmdargs .= "--trace-time ";
         if($evbased) {
             $cmdargs .= "--test-event ";

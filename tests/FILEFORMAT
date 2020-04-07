@@ -295,8 +295,8 @@ command is run. They are cleared again after the command has been run.
 Variables are first substituted as in the <command> section.
 </setenv>
 
-<command [option="no-output/no-include/force-output"] [timeout="secs"]
-         [delay="secs"][type="perl"]>
+<command [option="no-output/no-include/force-output/binary-trace"]
+         [timeout="secs"][delay="secs"][type="perl"]>
 command line to run, there's a bunch of %variables that get replaced
 accordingly.
 
@@ -324,6 +324,9 @@ otherwise written to verify stdout.
 
 Set option="no-include" to prevent the test script to slap on the --include
 argument.
+
+Set option="binary-trace" to use --trace instead of --trace-ascii for tracing.
+Suitable for binary-oriented protocols such as MQTT.
 
 Set timeout="secs" to override default server logs advisor read lock timeout.
 This timeout is used by the test harness, once that the command has completed
