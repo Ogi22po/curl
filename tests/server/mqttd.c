@@ -358,6 +358,7 @@ static int suback(FILE *dump, curl_socket_t fd, unsigned short packetid)
   return 1;
 }
 
+#ifdef QOS
 /* return 0 on success */
 static int puback(FILE *dump, curl_socket_t fd, unsigned short packetid)
 {
@@ -379,6 +380,7 @@ static int puback(FILE *dump, curl_socket_t fd, unsigned short packetid)
   logmsg("Failed sending [PUBACK]");
   return 1;
 }
+#endif
 
 /* return 0 on success */
 static int disconnect(FILE *dump, curl_socket_t fd)
@@ -668,10 +670,18 @@ static curl_socket_t mqttit(curl_socket_t fd)
       logmsg("Got %d bytes topic", topiclen);
       /* TODO: verify topiclen */
 
-      /* TODO: handle packetid if there is one */
+#ifdef QOS
+      /* TODO: handle packetid if there is one. Send puback if QoS > 0 */
       puback(dump, fd, 0);
+#endif
+      /* expect a disconnect here */
 
-      disconnect(dump, fd);
+      /* get the request */
+      rc = recv(fd, (char *)buffer, sizeof(buffer), 0);
+
+      logmsg("READ %d bytes [DISCONNECT]", rc);
+      loghex(buffer, rc);
+      logprotocol(FROM_CLIENT, dump, buffer, rc);
     }
     else {
       /* not supported (yet) */

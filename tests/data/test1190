@@ -26,10 +26,10 @@ mqtt
 <server>
 mqtt
 </server>
- <name>
+<name>
 MQTT SUBSCRIBE
- </name>
- <command>
+</name>
+<command option="binary-trace">
 mqtt://%HOSTIP:%MQTTPORT/1190
 </command>
 </client>

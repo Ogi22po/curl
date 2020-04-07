@@ -22,10 +22,10 @@ mqtt
 <server>
 mqtt
 </server>
- <name>
+<name>
 MQTT PUBLISH
- </name>
- <command>
+</name>
+<command option="binary-trace">
 mqtt://%HOSTIP:%MQTTPORT/1191 -d something
 </command>
 </client>
@@ -44,8 +44,7 @@ s/^(> 101800044d5154540402003c000c6375726c).*/$1/
 > 101800044d5154540402003c000c6375726c
 < 20020000
 > 300f000431313931736f6d657468696e67
-< 40000000
-< e000
+> e000
 </protocol>
 </verify>
 </testcase>
